@@ -1,0 +1,315 @@
+<div class="nyc-subway-map-embed" style="width: 100%; height: 600px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; position: relative; background: #f8f9fa;">
+    
+    <!-- Map Container -->
+    <div id="nyc-map" style="width: 100%; height: 100%;"></div>
+    
+    <!-- Loading Indicator -->
+    <div id="map-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        <div style="font-size: 16px; margin-bottom: 10px;">Loading NYC Subway Map...</div>
+        <div style="font-size: 12px; color: #666;">Calculating distances to Dunkin' locations</div>
+        <div style="margin-top: 15px;">
+            <div style="width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+        </div>
+    </div>
+    
+    <!-- Controls -->
+    <div id="map-controls" style="position: absolute; top: 15px; left: 15px; background: rgba(255,255,255,0.95); padding: 12px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 1000; font-size: 13px;">
+        <div style="font-weight: bold; margin-bottom: 8px;">Display Options</div>
+        <label style="display: block; margin: 4px 0; cursor: pointer;">
+            <input type="checkbox" id="show-subway" checked style="margin-right: 6px;"> Subway Stops
+        </label>
+        <label style="display: block; margin: 4px 0; cursor: pointer;">
+            <input type="checkbox" id="show-dunkin" checked style="margin-right: 6px;"> Dunkin' Locations
+        </label>
+        <label style="display: block; margin: 4px 0; cursor: pointer;">
+            <input type="checkbox" id="highlight-overlap" checked style="margin-right: 6px;"> Highlight Overlapping
+        </label>
+    </div>
+    
+    <!-- Legend -->
+    <div id="map-legend" style="position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.95); padding: 12px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 1000; font-size: 12px; max-width: 250px;">
+        <div style="font-weight: bold; margin-bottom: 8px;">NYC Subway & Dunkin' Map</div>
+        
+        <div style="margin: 12px 0;">
+            <div style="font-weight: bold; font-size: 11px; text-transform: uppercase; margin-bottom: 6px; color: #666;">Subway Stops</div>
+            <div style="display: flex; align-items: center; margin: 3px 0;">
+                <div style="width: 14px; height: 14px; background: #00FF00; border-radius: 50%; border: 2px solid #000; margin-right: 8px;"></div>
+                <span>&lt; 0.2 mi (Very Close)</span>
+            </div>
+            <div style="display: flex; align-items: center; margin: 3px 0;">
+                <div style="width: 14px; height: 14px; background: #FFFF00; border-radius: 50%; border: 2px solid #000; margin-right: 8px;"></div>
+                <span>0.2 - 0.5 mi (Close)</span>
+            </div>
+            <div style="display: flex; align-items: center; margin: 3px 0;">
+                <div style="width: 14px; height: 14px; background: #FFA500; border-radius: 50%; border: 2px solid #000; margin-right: 8px;"></div>
+                <span>0.5 - 1.0 mi (Moderate)</span>
+            </div>
+            <div style="display: flex; align-items: center; margin: 3px 0;">
+                <div style="width: 14px; height: 14px; background: #FF0000; border-radius: 50%; border: 2px solid #000; margin-right: 8px;"></div>
+                <span>&gt; 1.0 mi (Far)</span>
+            </div>
+        </div>
+        
+        <div style="margin: 12px 0;">
+            <div style="font-weight: bold; font-size: 11px; text-transform: uppercase; margin-bottom: 6px; color: #666;">Other</div>
+            <div style="display: flex; align-items: center; margin: 3px 0;">
+                <div style="width: 14px; height: 14px; background: #FF69B4; border-radius: 50%; border: 2px solid #000; margin-right: 8px;"></div>
+                <span>Dunkin' Locations</span>
+            </div>
+            <div style="display: flex; align-items: center; margin: 3px 0;">
+                <div style="width: 14px; height: 14px; background: #00FF00; border-radius: 50%; border: 4px solid #FF1493; margin-right: 8px; animation: pulse 2s infinite;"></div>
+                <span>Overlapping</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Stats -->
+    <div id="map-stats" style="position: absolute; bottom: 15px; right: 15px; background: rgba(255,255,255,0.95); padding: 10px 12px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 1000; font-size: 11px;">
+        <div style="font-weight: bold;">Statistics</div>
+        <div>Subway: <span id="subway-count">0</span></div>
+        <div>Dunkin': <span id="dunkin-count">0</span></div>
+        <div>Overlapping: <span id="overlap-count">0</span></div>
+        <div>Avg Distance: <span id="avg-distance">0</span> mi</div>
+    </div>
+    
+    <!-- Info -->
+    <div style="position: absolute; bottom: 15px; left: 15px; background: rgba(255,255,255,0.95); padding: 10px 12px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 1000; font-size: 11px; max-width: 280px;">
+        <div style="font-weight: bold;">Coverage Area</div>
+        <div><strong>Manhattan:</strong> Below 42nd St</div>
+        <div><strong>Brooklyn:</strong> Greenpoint, Williamsburg, Bushwick, Fort Greene, Bed-Stuy, Prospect Heights, Clinton Hill</div>
+    </div>
+
+</div>
+
+<!-- Styles -->
+<style>
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 20, 147, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 20, 147, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 20, 147, 0); }
+}
+
+.subway-overlapping {
+    border: 4px solid #FF1493 !important;
+    box-shadow: 0 0 0 2px #000, 0 0 15px rgba(255, 20, 147, 0.9) !important;
+    animation: pulse-glow 2s ease-in-out infinite alternate !important;
+}
+
+@keyframes pulse-glow {
+    from { box-shadow: 0 0 0 2px #000, 0 0 15px rgba(255, 20, 147, 0.9); }
+    to { box-shadow: 0 0 0 2px #000, 0 0 20px rgba(255, 20, 147, 1), 0 0 25px rgba(255, 20, 147, 0.8); }
+}
+</style>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// Wait for Leaflet to load
+function initializeNYCMap() {
+    if (typeof L === 'undefined') {
+        setTimeout(initializeNYCMap, 100);
+        return;
+    }
+    
+    // Initialize map
+    const map = L.map('nyc-map', {
+        zoomControl: true,
+        scrollWheelZoom: true
+    }).setView([40.7180, -73.9800], 13);
+    
+    // Add tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18
+    }).addTo(map);
+    
+    // Data
+    const dunkinLocations = [
+        {name: "Dunkin' Union Square", lat: 40.7359, lng: -73.9911, neighborhood: "Union Square"},
+        {name: "Dunkin' Penn Station", lat: 40.7505, lng: -73.9934, neighborhood: "Midtown South"},
+        {name: "Dunkin' Herald Square", lat: 40.7505, lng: -73.9884, neighborhood: "Midtown South"},
+        {name: "Dunkin' Greenwich Village", lat: 40.7308, lng: -73.9973, neighborhood: "Greenwich Village"},
+        {name: "Dunkin' East Village", lat: 40.7272, lng: -73.9818, neighborhood: "East Village"},
+        {name: "Dunkin' Lower East Side", lat: 40.7169, lng: -73.9848, neighborhood: "Lower East Side"},
+        {name: "Dunkin' SoHo", lat: 40.7233, lng: -74.0030, neighborhood: "SoHo"},
+        {name: "Dunkin' Financial District", lat: 40.7074, lng: -74.0113, neighborhood: "Financial District"},
+        {name: "Dunkin' Chelsea", lat: 40.7465, lng: -74.0014, neighborhood: "Chelsea"},
+        {name: "Dunkin' Williamsburg", lat: 40.7081, lng: -73.9571, neighborhood: "Williamsburg"},
+        {name: "Dunkin' Greenpoint", lat: 40.7308, lng: -73.9523, neighborhood: "Greenpoint"},
+        {name: "Dunkin' Bushwick", lat: 40.6942, lng: -73.9210, neighborhood: "Bushwick"},
+        {name: "Dunkin' Fort Greene", lat: 40.6922, lng: -73.9739, neighborhood: "Fort Greene"},
+        {name: "Dunkin' Bed-Stuy", lat: 40.6892, lng: -73.9442, neighborhood: "Bed-Stuy"},
+        {name: "Dunkin' DUMBO", lat: 40.7033, lng: -73.9889, neighborhood: "DUMBO"},
+        {name: "Dunkin' Brooklyn Heights", lat: 40.6962, lng: -73.9936, neighborhood: "Brooklyn Heights"},
+        {name: "Dunkin' Graham Ave", lat: 40.7143, lng: -73.9441, neighborhood: "Williamsburg", address: "352 Graham Ave"},
+        {name: "Dunkin' Metropolitan Ave", lat: 40.7142, lng: -73.9506, neighborhood: "Williamsburg", address: "527 Metropolitan Ave"},
+        {name: "Dunkin' Nostrand Ave", lat: 40.6806, lng: -73.9504, neighborhood: "Bed-Stuy"}
+    ];
+    
+    const subwayStops = [
+        {name: "Union Square-14th St", lines: "N,Q,R,W,L,4,5,6", lat: 40.7359, lng: -73.9911, neighborhood: "Union Square"},
+        {name: "34th St-Penn Station", lines: "A,C,E,1,2,3", lat: 40.7505, lng: -73.9934, neighborhood: "Midtown South"},
+        {name: "Herald Sq-34th St", lines: "B,D,F,M,N,Q,R,W", lat: 40.7505, lng: -73.9884, neighborhood: "Midtown South"},
+        {name: "14th St-8th Ave", lines: "A,C,E,L", lat: 40.7398, lng: -74.0018, neighborhood: "Chelsea"},
+        {name: "23rd St", lines: "N,Q,R,W", lat: 40.7417, lng: -73.9893, neighborhood: "Flatiron"},
+        {name: "8th St-NYU", lines: "N,Q,R,W", lat: 40.7308, lng: -73.9921, neighborhood: "Greenwich Village"},
+        {name: "Canal St", lines: "N,Q,R,W,J,Z,6", lat: 40.7188, lng: -74.0062, neighborhood: "Chinatown"},
+        {name: "Brooklyn Bridge-City Hall", lines: "4,5,6", lat: 40.7127, lng: -74.0046, neighborhood: "Financial District"},
+        {name: "Fulton St", lines: "A,C,J,Z,2,3,4,5", lat: 40.7097, lng: -74.0063, neighborhood: "Financial District"},
+        {name: "Wall St", lines: "4,5", lat: 40.7074, lng: -74.0113, neighborhood: "Financial District"},
+        {name: "Bedford Ave", lines: "L", lat: 40.7171, lng: -73.9565, neighborhood: "Williamsburg"},
+        {name: "Lorimer St", lines: "L", lat: 40.7140, lng: -73.9479, neighborhood: "Williamsburg"},
+        {name: "Graham Ave", lines: "L", lat: 40.7140, lng: -73.9440, neighborhood: "East Williamsburg"},
+        {name: "Grand St", lines: "L", lat: 40.7119, lng: -73.9400, neighborhood: "East Williamsburg"},
+        {name: "Jefferson St", lines: "L", lat: 40.7063, lng: -73.9222, neighborhood: "Bushwick"},
+        {name: "Greenpoint Ave", lines: "G", lat: 40.7312, lng: -73.9542, neighborhood: "Greenpoint"},
+        {name: "Metropolitan Ave", lines: "G", lat: 40.7142, lng: -73.9506, neighborhood: "Williamsburg"},
+        {name: "Atlantic Ave-Barclays Ctr", lines: "B,D,N,Q,R,2,3,4,5", lat: 40.6847, lng: -73.9772, neighborhood: "Fort Greene"},
+        {name: "Jay St-MetroTech", lines: "A,C,F,R", lat: 40.6924, lng: -73.9875, neighborhood: "Downtown Brooklyn"},
+        {name: "DeKalb Ave", lines: "B,Q,R", lat: 40.6901, lng: -73.9817, neighborhood: "Fort Greene"},
+        {name: "High St-Brooklyn Bridge", lines: "A,C", lat: 40.6995, lng: -73.9902, neighborhood: "DUMBO"},
+        {name: "Nostrand Ave", lines: "A,C", lat: 40.6806, lng: -73.9504, neighborhood: "Bed-Stuy"}
+    ];
+    
+    // Layer groups
+    const subwayGroup = L.layerGroup().addTo(map);
+    const dunkinGroup = L.layerGroup().addTo(map);
+    
+    // Calculate distance
+    function calculateDistance(lat1, lng1, lat2, lng2) {
+        const R = 3959;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                 Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                 Math.sin(dLng/2) * Math.sin(dLng/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+    
+    function getColorByDistance(distance) {
+        if (distance < 0.2) return '#00FF00';
+        if (distance < 0.5) return '#FFFF00';
+        if (distance < 1.0) return '#FFA500';
+        return '#FF0000';
+    }
+    
+    // Detect overlapping
+    const colocatedPairs = [];
+    subwayStops.forEach((subway, si) => {
+        dunkinLocations.forEach((dunkin, di) => {
+            const distance = calculateDistance(subway.lat, subway.lng, dunkin.lat, dunkin.lng);
+            if (distance <= 0.01) {
+                colocatedPairs.push({subway, dunkin, subwayIndex: si, dunkinIndex: di});
+            }
+        });
+    });
+    
+    // Add markers
+    let totalDistance = 0;
+    
+    subwayStops.forEach((stop, index) => {
+        let minDistance = Infinity;
+        let nearestDunkin = null;
+        
+        dunkinLocations.forEach(dunkin => {
+            const distance = calculateDistance(stop.lat, stop.lng, dunkin.lat, dunkin.lng);
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearestDunkin = dunkin;
+            }
+        });
+        
+        totalDistance += minDistance;
+        const color = getColorByDistance(minDistance);
+        
+        const isColocated = colocatedPairs.some(pair => 
+            Math.abs(pair.subway.lat - stop.lat) < 0.0001 && 
+            Math.abs(pair.subway.lng - stop.lng) < 0.0001
+        );
+        
+        const marker = L.circleMarker([stop.lat, stop.lng], {
+            radius: isColocated ? 8 : 6,
+            fillColor: color,
+            color: isColocated ? '#FF1493' : '#000',
+            weight: isColocated ? 6 : 2,
+            opacity: 1,
+            fillOpacity: 0.9,
+            className: isColocated ? 'subway-overlapping' : ''
+        });
+        
+        marker.bindPopup(`
+            <strong>${stop.name}</strong><br>
+            Lines: ${stop.lines}<br>
+            ${isColocated ? '<strong>⭐ Overlaps with Dunkin\'!</strong><br>' : ''}
+            Distance: ${minDistance.toFixed(2)} miles<br>
+            Nearest: ${nearestDunkin.name}
+        `);
+        
+        subwayGroup.addLayer(marker);
+    });
+    
+    dunkinLocations.forEach(dunkin => {
+        const marker = L.circleMarker([dunkin.lat, dunkin.lng], {
+            radius: 8,
+            fillColor: '#FF69B4',
+            color: '#000',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.8
+        });
+        
+        const addressText = dunkin.address ? `<br><strong>Address:</strong> ${dunkin.address}` : '';
+        marker.bindPopup(`
+            <strong>${dunkin.name}</strong><br>
+            Neighborhood: ${dunkin.neighborhood}${addressText}
+        `);
+        
+        dunkinGroup.addLayer(marker);
+    });
+    
+    // Update stats
+    document.getElementById('subway-count').textContent = subwayStops.length;
+    document.getElementById('dunkin-count').textContent = dunkinLocations.length;
+    document.getElementById('overlap-count').textContent = colocatedPairs.length;
+    document.getElementById('avg-distance').textContent = (totalDistance / subwayStops.length).toFixed(2);
+    
+    // Controls
+    document.getElementById('show-subway').addEventListener('change', function() {
+        if (this.checked) map.addLayer(subwayGroup);
+        else map.removeLayer(subwayGroup);
+    });
+    
+    document.getElementById('show-dunkin').addEventListener('change', function() {
+        if (this.checked) map.addLayer(dunkinGroup);
+        else map.removeLayer(dunkinGroup);
+    });
+    
+    document.getElementById('highlight-overlap').addEventListener('change', function() {
+        // Toggle overlapping styles
+        subwayGroup.eachLayer(layer => {
+            if (layer.options.className === 'subway-overlapping') {
+                const element = layer.getElement();
+                if (element) {
+                    element.style.display = this.checked ? 'block' : 'none';
+                }
+            }
+        });
+    });
+    
+    // Hide loading
+    document.getElementById('map-loading').style.display = 'none';
+}
+
+// Start initialization
+setTimeout(initializeNYCMap, 100);
+</script>
