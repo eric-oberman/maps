@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NYC Subway Stops by Dunkin' Proximity</title>
+    <style>
+        /* Reset and base styles */
+        * {
+            box-sizing: border-box;
+        }
+        
+        .nyc-subway-map-container {
+            position: relative;
+            width: 100%;
+            height: 70vh;
+            min-height: 500px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .nyc-subway-map {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        /* Map tiles via OpenStreetMap */
+        .leaflet-container {
+            height: 100%;
+            width: 100%;
+            font: 12px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
+        }
+        
+        /* Controls */
+        .map-controls {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            z-index: 1000;
+            font-size: 13px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .map-controls h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .map-controls label {
+            display: block;
+            margin: 6px 0;
+            cursor: pointer;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        .map-controls input[type="checkbox"] {
+            margin-right: 8px;
+            transform: scale(1.1);
+        }
+        
+        /* Legend */
+        .map-legend {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            z-index: 1000;
+            font-size: 13px;
+            max-height: 80vh;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 280px;
+        }
+        
+        .map-legend h3 {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .legend-section {
+            margin: 16px 0;
+        }
+        
+        .legend-section h4 {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: #444;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .legend-item {
+            margin: 6px 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid #333;
+            flex-shrink: 0;
+        }
+        
+        /* Statistics */
+        .map-stats {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            z-index: 1000;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .map-stats strong {
+            color: #333;
+            font-weight: 600;
+        }
+        
+        /* Info panel */
+        .map-info {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            z-index: 1000;
+            font-size: 12px;
+            max-width: 320px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .map-info strong {
+            color: #333;
+            font-weight: 600;
+        }
+        
+        /* Enhanced marker styles */
+        .subway-with-dunkin {
+            border: 6px solid #FF1493 !important;
+            box-shadow: 0 0 0 2px #000, 0 0 15px rgba(255, 20, 147, 0.9), 0 0 25px rgba(255, 20, 147, 0.6) !important;
+            animation: pulse-glow 2s ease-in-out infinite alternate;
+            z-index: 1000 !important;
+            position: relative !important;
+        }
+        
+        .subway-marker {
+            z-index: 500 !important;
+            position: relative !important;
+        }
+        
+        .dunkin-marker {
+            z-index: 100 !important;
+            position: relative !important;
+        }
+        
+        @keyframes pulse-glow {
+            from {
+                box-shadow: 0 0 0 2px #000, 0 0 15px rgba(255, 20, 147, 0.9), 0 0 25px rgba(255, 20, 147, 0.6);
+            }
+            to {
+                box-shadow: 0 0 0 2px #000, 0 0 20px rgba(255, 20, 147, 1), 0 0 35px rgba(255, 20, 147, 0.8);
+            }
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .nyc-subway-map-container {
+                height: 80vh;
+                min-height: 400px;
+            }
+            
+            .map-controls, .map-legend {
+                position: relative;
+                margin: 10px;
+                width: calc(100% - 20px);
+                max-width: none;
+            }
+            
+            .map-legend {
+                max-height: 200px;
+            }
+            
+            .map-stats, .map-info {
+                position: relative;
+                margin: 10px;
+                width: calc(100% - 20px);
+                max-width: none;
+            }
+            
+            .nyc-subway-map-container {
+                flex-direction: column;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .map-controls, .map-legend, .map-stats, .map-info {
+                font-size: 11px;
+                padding: 8px 12px;
+            }
+            
+            .legend-color {
+                width: 14px;
+                height: 14px;
+                margin-right: 8px;
+            }
+        }
+        
+        /* Simplified map styles without external dependencies */
+        .simple-map {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: #e6f3ff;
+            overflow: hidden;
+        }
+        
+        .map-marker {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid #000;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .map-marker:hover {
+            transform: scale(1.3);
+            z-index: 1000;
+        }
+        
+        .map-marker.subway {
+            width: 10px;
+            height: 10px;
+        }
+        
+        .map-marker.dunkin {
+            background: #FF69B4;
+            width: 14px;
+            height: 14px;
+        }
+        
+        .map-marker.overlapping {
+            border: 6px solid #FF1493;
+            box-shadow: 0 0 15px rgba(255, 20, 147, 0.9);
+            animation: pulse-glow 2s ease-in-out infinite alternate;
+            width: 16px;
+            height: 16px;
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            pointer-events: none;
+            z-index: 2000;
+            max-width: 200px;
+            line-height: 1.4;
+        }
+        
+        /* Loading indicator */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 2000;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .loading.hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="nyc-subway-map-container">
+        <div class="loading" id="loading">
+            <div>Loading NYC subway map...</div>
+            <div style="margin-top: 8px; font-size: 12px; color: #666;">Calculating distances to Dunkin' locations</div>
+        </div>
+        
+        <div class="simple-map" id="map"></div>
+        
+        <div class="map-controls">
+            <h4>Display Options</h4>
+            <label><input type="checkbox" id="showSubway" checked> Show Subway Stops</label>
+            <label><input type="checkbox" id="showDunkin" checked> Show Dunkin' Locations</label>
+            <label><input type="checkbox" id="highlightColocated" checked> Highlight Overlapping</label>
+        </div>
+        
+        <div class="map-legend">
+            <h3>NYC Subway & Dunkin' Map</h3>
+            
+            <div class="legend-section">
+                <h4>Subway Stops</h4>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #00FF00;"></div>
+                    <span>&lt; 0.2 miles (Very Close)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #FFFF00;"></div>
+                    <span>0.2 - 0.5 miles (Close)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #FFA500;"></div>
+                    <span>0.5 - 1.0 miles (Moderate)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #FF0000;"></div>
+                    <span>&gt; 1.0 miles (Far)</span>
+                </div>
+            </div>
+            
+            <div class="legend-section">
+                <h4>Other Locations</h4>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #FF69B4;"></div>
+                    <span>Dunkin' Locations</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #00FF00; border: 3px solid #FF1493; box-shadow: 0 0 8px rgba(255, 20, 147, 0.8);"></div>
+                    <span>Overlapping Locations</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="map-stats" id="stats">
+            <strong>Statistics</strong><br>
+            Subway Stops: <span id="subwayCount">0</span><br>
+            Dunkin' Locations: <span id="dunkinCount">0</span><br>
+            Overlapping: <span id="colocatedCount">0</span><br>
+            Avg Distance: <span id="avgDistance">0</span> miles
+        </div>
+        
+        <div class="map-info">
+            <strong>Lower Manhattan & North Brooklyn</strong><br>
+            <strong>Manhattan:</strong> Below 42nd Street<br>
+            <strong>Brooklyn:</strong> Greenpoint, Williamsburg, Bushwick, Fort Greene, Bed-Stuy, Prospect Heights, Clinton Hill<br>
+            <br>
+            Subway stops are color-coded by distance to nearest Dunkin'. 
+            Overlapping locations have enhanced pink borders.
+        </div>
+    </div>
+
+    <script>
+        // Simplified map implementation without external dependencies
+        const mapContainer = document.getElementById('map');
+        const loading = document.getElementById('loading');
+        
+        // Map bounds (approximate for Lower Manhattan & North Brooklyn)
+        const mapBounds = {
+            north: 40.77,
+            south: 40.65,
+            east: -73.90,
+            west: -74.02
+        };
+        
+        const mapWidth = mapContainer.offsetWidth;
+        const mapHeight = mapContainer.offsetHeight;
+        
+        // Convert lat/lng to pixel coordinates
+        function latLngToPixels(lat, lng) {
+            const x = ((lng - mapBounds.west) / (mapBounds.east - mapBounds.west)) * mapWidth;
+            const y = ((mapBounds.north - lat) / (mapBounds.north - mapBounds.south)) * mapHeight;
+            return {x: Math.max(0, Math.min(mapWidth, x)), y: Math.max(0, Math.min(mapHeight, y))};
+        }
+        
+        // Calculate distance between two points using Haversine formula
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 3959; // Earth's radius in miles
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                     Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+        
+        // Get color based on distance
+        function getColorByDistance(distance) {
+            if (distance < 0.2) return '#00FF00';
+            if (distance < 0.5) return '#FFFF00';
+            if (distance < 1.0) return '#FFA500';
+            return '#FF0000';
+        }
+        
+        // Data arrays (same as before but condensed)
+        const dunkinLocations = [
+            {name: "Dunkin' Union Square", lat: 40.7359, lng: -73.9911, neighborhood: "Union Square", borough: "Manhattan"},
+            {name: "Dunkin' Penn Station", lat: 40.7505, lng: -73.9934, neighborhood: "Midtown South", borough: "Manhattan"},
+            {name: "Dunkin' Herald Square", lat: 40.7505, lng: -73.9884, neighborhood: "Midtown South", borough: "Manhattan"},
+            {name: "Dunkin' Greenwich Village", lat: 40.7308, lng: -73.9973, neighborhood: "Greenwich Village", borough: "Manhattan"},
+            {name: "Dunkin' East Village", lat: 40.7272, lng: -73.9818, neighborhood: "East Village", borough: "Manhattan"},
+            {name: "Dunkin' Lower East Side", lat: 40.7169, lng: -73.9848, neighborhood: "Lower East Side", borough: "Manhattan"},
+            {name: "Dunkin' SoHo", lat: 40.7233, lng: -74.0030, neighborhood: "SoHo", borough: "Manhattan"},
+            {name: "Dunkin' Tribeca", lat: 40.7195, lng: -74.0089, neighborhood: "Tribeca", borough: "Manhattan"},
+            {name: "Dunkin' Financial District", lat: 40.7074, lng: -74.0113, neighborhood: "Financial District", borough: "Manhattan"},
+            {name: "Dunkin' Chinatown", lat: 40.7155, lng: -73.9976, neighborhood: "Chinatown", borough: "Manhattan"},
+            {name: "Dunkin' Chelsea", lat: 40.7465, lng: -74.0014, neighborhood: "Chelsea", borough: "Manhattan"},
+            {name: "Dunkin' Flatiron", lat: 40.7414, lng: -73.9896, neighborhood: "Flatiron", borough: "Manhattan"},
+            {name: "Dunkin' Williamsburg", lat: 40.7081, lng: -73.9571, neighborhood: "Williamsburg", borough: "Brooklyn"},
+            {name: "Dunkin' Greenpoint", lat: 40.7308, lng: -73.9523, neighborhood: "Greenpoint", borough: "Brooklyn"},
+            {name: "Dunkin' Bushwick", lat: 40.6942, lng: -73.9210, neighborhood: "Bushwick", borough: "Brooklyn"},
+            {name: "Dunkin' Fort Greene", lat: 40.6922, lng: -73.9739, neighborhood: "Fort Greene", borough: "Brooklyn"},
+            {name: "Dunkin' Bed-Stuy", lat: 40.6892, lng: -73.9442, neighborhood: "Bedford-Stuyvesant", borough: "Brooklyn"},
+            {name: "Dunkin' Prospect Heights", lat: 40.6781, lng: -73.9680, neighborhood: "Prospect Heights", borough: "Brooklyn"},
+            {name: "Dunkin' Clinton Hill", lat: 40.6879, lng: -73.9690, neighborhood: "Clinton Hill", borough: "Brooklyn"},
+            {name: "Dunkin' DUMBO", lat: 40.7033, lng: -73.9889, neighborhood: "DUMBO", borough: "Brooklyn"},
+            {name: "Dunkin' Brooklyn Heights", lat: 40.6962, lng: -73.9936, neighborhood: "Brooklyn Heights", borough: "Brooklyn"},
+            {name: "Dunkin' Downtown Brooklyn", lat: 40.6924, lng: -73.9875, neighborhood: "Downtown Brooklyn", borough: "Brooklyn"},
+            {name: "Dunkin' Graham Ave", lat: 40.7143, lng: -73.9441, neighborhood: "Williamsburg", borough: "Brooklyn", address: "352 Graham Ave"},
+            {name: "Dunkin' Metropolitan Ave", lat: 40.7142, lng: -73.9506, neighborhood: "Williamsburg", borough: "Brooklyn", address: "527 Metropolitan Ave"},
+            {name: "Dunkin' Bedford Ave", lat: 40.7171, lng: -73.9565, neighborhood: "Williamsburg", borough: "Brooklyn"},
+            {name: "Dunkin' Nostrand Ave", lat: 40.6806, lng: -73.9504, neighborhood: "Bed-Stuy", borough: "Brooklyn"},
+            {name: "Dunkin' DeKalb Ave", lat: 40.6901, lng: -73.9817, neighborhood: "Fort Greene", borough: "Brooklyn"}
+        ];
+        
+        const subwayStops = [
+            {name: "Union Square-14th St", lines: "N,Q,R,W,L,4,5,6", lat: 40.7359, lng: -73.9911, neighborhood: "Union Square"},
+            {name: "34th St-Penn Station", lines: "A,C,E,1,2,3", lat: 40.7505, lng: -73.9934, neighborhood: "Midtown South"},
+            {name: "Herald Sq-34th St", lines: "B,D,F,M,N,Q,R,W", lat: 40.7505, lng: -73.9884, neighborhood: "Midtown South"},
+            {name: "14th St-8th Ave", lines: "A,C,E,L", lat: 40.7398, lng: -74.0018, neighborhood: "Chelsea"},
+            {name: "23rd St", lines: "N,Q,R,W", lat: 40.7417, lng: -73.9893, neighborhood: "Flatiron"},
+            {name: "8th St-NYU", lines: "N,Q,R,W", lat: 40.7308, lng: -73.9921, neighborhood: "Greenwich Village"},
+            {name: "Astor Pl", lines: "6", lat: 40.7300, lng: -73.9915, neighborhood: "East Village"},
+            {name: "Canal St", lines: "N,Q,R,W,J,Z,6", lat: 40.7188, lng: -74.0062, neighborhood: "Chinatown"},
+            {name: "West 4th St-Washington Sq", lines: "A,B,C,D,E,F,M", lat: 40.7323, lng: -74.0013, neighborhood: "Greenwich Village"},
+            {name: "Brooklyn Bridge-City Hall", lines: "4,5,6", lat: 40.7127, lng: -74.0046, neighborhood: "Financial District"},
+            {name: "Fulton St", lines: "A,C,J,Z,2,3,4,5", lat: 40.7097, lng: -74.0063, neighborhood: "Financial District"},
+            {name: "Wall St", lines: "4,5", lat: 40.7074, lng: -74.0113, neighborhood: "Financial District"},
+            {name: "Bowling Green", lines: "4,5", lat: 40.7049, lng: -74.0137, neighborhood: "Financial District"},
+            {name: "Bedford Ave", lines: "L", lat: 40.7171, lng: -73.9565, neighborhood: "Williamsburg"},
+            {name: "Lorimer St", lines: "L", lat: 40.7140, lng: -73.9479, neighborhood: "Williamsburg"},
+            {name: "Graham Ave", lines: "L", lat: 40.7140, lng: -73.9440, neighborhood: "East Williamsburg"},
+            {name: "Grand St", lines: "L", lat: 40.7119, lng: -73.9400, neighborhood: "East Williamsburg"},
+            {name: "Jefferson St", lines: "L", lat: 40.7063, lng: -73.9222, neighborhood: "Bushwick"},
+            {name: "Myrtle-Wyckoff Aves", lines: "L,M", lat: 40.6996, lng: -73.9097, neighborhood: "Bushwick"},
+            {name: "Greenpoint Ave", lines: "G", lat: 40.7312, lng: -73.9542, neighborhood: "Greenpoint"},
+            {name: "Nassau Ave", lines: "G", lat: 40.7242, lng: -73.9510, neighborhood: "Greenpoint"},
+            {name: "Metropolitan Ave", lines: "G", lat: 40.7142, lng: -73.9506, neighborhood: "Williamsburg"},
+            {name: "Atlantic Ave-Barclays Ctr", lines: "B,D,N,Q,R,2,3,4,5", lat: 40.6847, lng: -73.9772, neighborhood: "Fort Greene"},
+            {name: "Jay St-MetroTech", lines: "A,C,F,R", lat: 40.6924, lng: -73.9875, neighborhood: "Downtown Brooklyn"},
+            {name: "DeKalb Ave", lines: "B,Q,R", lat: 40.6901, lng: -73.9817, neighborhood: "Fort Greene"},
+            {name: "High St-Brooklyn Bridge", lines: "A,C", lat: 40.6995, lng: -73.9902, neighborhood: "DUMBO"},
+            {name: "York St", lines: "F", lat: 40.7016, lng: -73.9864, neighborhood: "DUMBO"},
+            {name: "Clinton-Washington Aves", lines: "C", lat: 40.6833, lng: -73.9669, neighborhood: "Clinton Hill"},
+            {name: "Nostrand Ave", lines: "A,C", lat: 40.6806, lng: -73.9504, neighborhood: "Bed-Stuy"},
+            {name: "Grand Army Plaza", lines: "2,3", lat: 40.6752, lng: -73.9707, neighborhood: "Prospect Heights"},
+            {name: "Eastern Pkwy-Brooklyn Museum", lines: "2,3", lat: 40.6717, lng: -73.9635, neighborhood: "Prospect Heights"}
+        ];
+        
+        // Global variables
+        let allMarkers = [];
+        let colocatedPairs = [];
+        let tooltip = null;
+        
+        // Create tooltip element
+        function createTooltip() {
+            tooltip = document.createElement('div');
+            tooltip.className = 'tooltip';
+            tooltip.style.display = 'none';
+            document.body.appendChild(tooltip);
+        }
+        
+        // Show tooltip
+        function showTooltip(event, content) {
+            if (!tooltip) createTooltip();
+            tooltip.innerHTML = content;
+            tooltip.style.display = 'block';
+            tooltip.style.left = event.pageX + 10 + 'px';
+            tooltip.style.top = event.pageY - 10 + 'px';
+        }
+        
+        // Hide tooltip
+        function hideTooltip() {
+            if (tooltip) tooltip.style.display = 'none';
+        }
+        
+        // Detect co-located markers
+        function detectColocatedMarkers() {
+            colocatedPairs = [];
+            const threshold = 0.01; // ~100 feet
+            
+            subwayStops.forEach((subway, subwayIndex) => {
+                dunkinLocations.forEach((dunkin, dunkinIndex) => {
+                    const distance = calculateDistance(subway.lat, subway.lng, dunkin.lat, dunkin.lng);
+                    if (distance <= threshold) {
+                        colocatedPairs.push({
+                            subway: subway,
+                            dunkin: dunkin,
+                            distance: distance,
+                            subwayIndex: subwayIndex,
+                            dunkinIndex: dunkinIndex
+                        });
+                    }
+                });
+            });
+            
+            return colocatedPairs;
+        }
+        
+        // Create marker element
+        function createMarker(type, lat, lng, color, data, isOverlapping = false) {
+            const pos = latLngToPixels(lat, lng);
+            const marker = document.createElement('div');
+            marker.className = `map-marker ${type}${isOverlapping ? ' overlapping' : ''}`;
+            marker.style.left = (pos.x - 6) + 'px';
+            marker.style.top = (pos.y - 6) + 'px';
+            marker.style.backgroundColor = color;
+            
+            // Add click and hover events
+            marker.addEventListener('mouseenter', (e) => {
+                let content = `<strong>${data.name}</strong><br>`;
+                if (data.lines) content += `Lines: ${data.lines}<br>`;
+                if (data.neighborhood) content += `Neighborhood: ${data.neighborhood}<br>`;
+                if (data.borough) content += `Borough: ${data.borough}<br>`;
+                if (data.address) content += `Address: ${data.address}<br>`;
+                if (data.distance) content += `Distance to nearest Dunkin': ${data.distance.toFixed(2)} miles`;
+                
+                showTooltip(e, content);
+            });
+            
+            marker.addEventListener('mouseleave', hideTooltip);
+            
+            return marker;
+        }
+        
+        // Initialize the map
+        function initializeMap() {
+            // Clear existing markers
+            allMarkers.forEach(marker => marker.remove());
+            allMarkers = [];
+            
+            // Detect co-located pairs
+            detectColocatedMarkers();
+            
+            let totalDistance = 0;
+            let colocatedCount = 0;
+            
+            // Process subway stops
+            subwayStops.forEach((stop, index) => {
+                let minDistance = Infinity;
+                let nearestDunkin = null;
+                
+                dunkinLocations.forEach(dunkin => {
+                    const distance = calculateDistance(stop.lat, stop.lng, dunkin.lat, dunkin.lng);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        nearestDunkin = dunkin;
+                    }
+                });
+                
+                totalDistance += minDistance;
+                const color = getColorByDistance(minDistance);
+                
+                // Check if this is co-located
+                const isColocated = colocatedPairs.some(pair => 
+                    Math.abs(pair.subway.lat - stop.lat) < 0.0001 && 
+                    Math.abs(pair.subway.lng - stop.lng) < 0.0001
+                );
+                
+                if (isColocated) colocatedCount++;
+                
+                const marker = createMarker('subway', stop.lat, stop.lng, color, {
+                    ...stop,
+                    distance: minDistance,
+                    nearestDunkin: nearestDunkin?.name
+                }, isColocated && document.getElementById('highlightColocated').checked);
+                
+                allMarkers.push({element: marker, type: 'subway'});
+                mapContainer.appendChild(marker);
+            });
+            
+            // Add Dunkin' locations
+            dunkinLocations.forEach(dunkin => {
+                const marker = createMarker('dunkin', dunkin.lat, dunkin.lng, '#FF69B4', dunkin);
+                allMarkers.push({element: marker, type: 'dunkin'});
+                mapContainer.appendChild(marker);
+            });
+            
+            // Update statistics
+            const avgDistance = (totalDistance / subwayStops.length).toFixed(2);
+            document.getElementById('subwayCount').textContent = subwayStops.length;
+            document.getElementById('dunkinCount').textContent = dunkinLocations.length;
+            document.getElementById('colocatedCount').textContent = colocatedCount;
+            document.getElementById('avgDistance').textContent = avgDistance;
+            
+            // Update visibility
+            updateVisibility();
+            
+            // Hide loading
+            loading.classList.add('hidden');
+        }
+        
+        // Update marker visibility
+        function updateVisibility() {
+            const showSubway = document.getElementById('showSubway').checked;
+            const showDunkin = document.getElementById('showDunkin').checked;
+            
+            allMarkers.forEach(marker => {
+                const shouldShow = (marker.type === 'subway' && showSubway) || 
+                                 (marker.type === 'dunkin' && showDunkin);
+                marker.element.style.display = shouldShow ? 'block' : 'none';
+            });
+        }
+        
+        // Setup event listeners
+        function setupControls() {
+            document.getElementById('showSubway').addEventListener('change', updateVisibility);
+            document.getElementById('showDunkin').addEventListener('change', updateVisibility);
+            document.getElementById('highlightColocated').addEventListener('change', initializeMap);
+        }
+        
+        // Handle window resize
+        function handleResize() {
+            const newWidth = mapContainer.offsetWidth;
+            const newHeight = mapContainer.offsetHeight;
+            if (newWidth !== mapWidth || newHeight !== mapHeight) {
+                initializeMap();
+            }
+        }
+        
+        // Initialize everything
+        setTimeout(() => {
+            initializeMap();
+            setupControls();
+            window.addEventListener('resize', handleResize);
+        }, 500);
+    </script>
+</body>
+</html>
