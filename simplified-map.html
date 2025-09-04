@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NYC Subway Stops by Dunkin' Proximity - Lower Manhattan & Brooklyn</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            height: 100vh;
+            width: 100vw;
+        }
+        .legend {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 1000;
+            font-size: 14px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .legend h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        .legend-section {
+            margin: 15px 0;
+        }
+        .legend-section h4 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+        }
+        .legend-item {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+        }
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 8px;
+            border: 2px solid #333;
+        }
+        .controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 1000;
+            font-size: 14px;
+        }
+        .controls label {
+            display: block;
+            margin: 5px 0;
+            cursor: pointer;
+        }
+        .controls h4 {
+            margin: 0 0 10px 0;
+        }
+        .stats {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 1000;
+            font-size: 12px;
+        }
+        .info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 1000;
+            font-size: 12px;
+            max-width: 300px;
+        }
+        .subway-with-dunkin {
+            border: 6px solid #FF1493 !important;
+            box-shadow: 0 0 0 2px #000, 0 0 15px rgba(255, 20, 147, 0.9), 0 0 25px rgba(255, 20, 147, 0.6) !important;
+            animation: pulse-glow 2s ease-in-out infinite alternate;
+            z-index: 1000 !important;
+            position: relative !important;
+        }
+        
+        .subway-marker {
+            z-index: 500 !important;
+            position: relative !important;
+        }
+        
+        .dunkin-marker {
+            z-index: 100 !important;
+            position: relative !important;
+        }
+        
+        @keyframes pulse-glow {
+            from {
+                box-shadow: 0 0 0 2px #000, 0 0 15px rgba(255, 20, 147, 0.9), 0 0 25px rgba(255, 20, 147, 0.6);
+            }
+            to {
+                box-shadow: 0 0 0 2px #000, 0 0 20px rgba(255, 20, 147, 1), 0 0 35px rgba(255, 20, 147, 0.8);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="controls">
+        <h4>Display Options</h4>
+        <label><input type="checkbox" id="showSubway" checked> Show Subway Stops</label>
+        <label><input type="checkbox" id="showDunkin" checked> Show Dunkin' Locations</label>
+        <label><input type="checkbox" id="clusterMarkers"> Cluster Markers</label>
+        <label><input type="checkbox" id="highlightColocated" checked> Highlight Overlapping</label>
+    </div>
+    
+    <div class="legend">
+        <h3>NYC Subway & Dunkin' Map</h3>
+        
+        <div class="legend-section">
+            <h4>Subway Stops (by distance to nearest Dunkin')</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #00FF00;"></div>
+                <span>&lt; 0.2 miles (Very Close)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #FFFF00;"></div>
+                <span>0.2 - 0.5 miles (Close)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #FFA500;"></div>
+                <span>0.5 - 1.0 miles (Moderate)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #FF0000;"></div>
+                <span>&gt; 1.0 miles (Far)</span>
+            </div>
+        </div>
+        
+        <div class="legend-section">
+            <h4>Other Locations</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #FF69B4;"></div>
+                <span>Dunkin' Locations</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #00FF00; border: 3px solid #FF1493; box-shadow: 0 0 8px rgba(255, 20, 147, 0.8);"></div>
+                <span>Overlapping Locations</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stats" id="stats">
+        <strong>Statistics</strong><br>
+        Subway Stops: <span id="subwayCount">0</span><br>
+        Dunkin' Locations: <span id="dunkinCount">0</span><br>
+        Overlapping: <span id="colocatedCount">0</span><br>
+        Avg Distance: <span id="avgDistance">0</span> miles
+    </div>
+    
+    <div class="info">
+        <strong>Lower Manhattan & North Brooklyn</strong><br>
+        <strong>Manhattan:</strong> Below 42nd Street<br>
+        <strong>Brooklyn:</strong> Greenpoint, Williamsburg, Bushwick, Fort Greene, Bed-Stuy, Prospect Heights, Clinton Hill<br>
+        <br>
+        Subway stops are color-coded by distance to nearest Dunkin'. 
+        Overlapping locations have enhanced pink borders.
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <script>
+        // Initialize map centered on Lower Manhattan/North Brooklyn
+        const map = L.map('map').setView([40.7180, -73.9800], 13);
+        
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Layer groups
+        let subwayGroup = L.layerGroup();
+        let dunkinGroup = L.layerGroup();
+        let subwayCluster = L.markerClusterGroup({
+            maxClusterRadius: 50,
+            spiderfyOnMaxZoom: true
+        });
+        let dunkinCluster = L.markerClusterGroup({
+            maxClusterRadius: 30,
+            spiderfyOnMaxZoom: true
+        });
+
+        // Comprehensive Dunkin' locations in target areas (including missing ones)
+        const dunkinLocations = [
+            // Lower Manhattan (below 42nd Street)
+            {name: "Dunkin' Union Square", lat: 40.7359, lng: -73.9911, neighborhood: "Union Square", borough: "Manhattan"},
+            {name: "Dunkin' Penn Station", lat: 40.7505, lng: -73.9934, neighborhood: "Midtown South", borough: "Manhattan"},
+            {name: "Dunkin' Herald Square", lat: 40.7505, lng: -73.9884, neighborhood: "Midtown South", borough: "Manhattan"},
+            {name: "Dunkin' Greenwich Village", lat: 40.7308, lng: -73.9973, neighborhood: "Greenwich Village", borough: "Manhattan"},
+            {name: "Dunkin' East Village", lat: 40.7272, lng: -73.9818, neighborhood: "East Village", borough: "Manhattan"},
+            {name: "Dunkin' Lower East Side", lat: 40.7169, lng: -73.9848, neighborhood: "Lower East Side", borough: "Manhattan"},
+            {name: "Dunkin' SoHo", lat: 40.7233, lng: -74.0030, neighborhood: "SoHo", borough: "Manhattan"},
+            {name: "Dunkin' Tribeca", lat: 40.7195, lng: -74.0089, neighborhood: "Tribeca", borough: "Manhattan"},
+            {name: "Dunkin' Financial District", lat: 40.7074, lng: -74.0113, neighborhood: "Financial District", borough: "Manhattan"},
+            {name: "Dunkin' Chinatown", lat: 40.7155, lng: -73.9976, neighborhood: "Chinatown", borough: "Manhattan"},
+            {name: "Dunkin' Little Italy", lat: 40.7196, lng: -73.9977, neighborhood: "Little Italy", borough: "Manhattan"},
+            {name: "Dunkin' Nolita", lat: 40.7226, lng: -73.9956, neighborhood: "Nolita", borough: "Manhattan"},
+            {name: "Dunkin' Canal Street", lat: 40.7188, lng: -74.0062, neighborhood: "Chinatown", borough: "Manhattan"},
+            {name: "Dunkin' Wall Street", lat: 40.7074, lng: -74.0113, neighborhood: "Financial District", borough: "Manhattan"},
+            {name: "Dunkin' Brooklyn Bridge", lat: 40.7127, lng: -74.0046, neighborhood: "Financial District", borough: "Manhattan"},
+            {name: "Dunkin' Fulton Street", lat: 40.7097, lng: -74.0063, neighborhood: "Financial District", borough: "Manhattan"},
+            {name: "Dunkin' Chelsea", lat: 40.7465, lng: -74.0014, neighborhood: "Chelsea", borough: "Manhattan"},
+            {name: "Dunkin' Flatiron", lat: 40.7414, lng: -73.9896, neighborhood: "Flatiron", borough: "Manhattan"},
+            {name: "Dunkin' Gramercy", lat: 40.7370, lng: -73.9831, neighborhood: "Gramercy", borough: "Manhattan"},
+            {name: "Dunkin' NoMad", lat: 40.7446, lng: -73.9874, neighborhood: "NoMad", borough: "Manhattan"},
+            {name: "Dunkin' 14th Street", lat: 40.7356, lng: -73.9912, neighborhood: "Union Square", borough: "Manhattan"},
+            {name: "Dunkin' 23rd Street", lat: 40.7417, lng: -73.9893, neighborhood: "Flatiron", borough: "Manhattan"},
+            
+            // Brooklyn - Target neighborhoods (including missing locations)
+            {name: "Dunkin' Williamsburg", lat: 40.7081, lng: -73.9571, neighborhood: "Williamsburg", borough: "Brooklyn"},
+            {name: "Dunkin' Greenpoint", lat: 40.7308, lng: -73.9523, neighborhood: "Greenpoint", borough: "Brooklyn"},
+            {name: "Dunkin' Bushwick", lat: 40.6942, lng: -73.9210, neighborhood: "Bushwick", borough: "Brooklyn"},
+            {name: "Dunkin' Fort Greene", lat: 40.6922, lng: -73.9739, neighborhood: "Fort Greene", borough: "Brooklyn"},
+            {name: "Dunkin' Bed-Stuy", lat: 40.6892, lng: -73.9442, neighborhood: "Bedford-Stuyvesant", borough: "Brooklyn"},
+            {name: "Dunkin' Prospect Heights", lat: 40.6781, lng: -73.9680, neighborhood: "Prospect Heights", borough: "Brooklyn"},
+            {name: "Dunkin' Clinton Hill", lat: 40.6879, lng: -73.9690, neighborhood: "Clinton Hill", borough: "Brooklyn"},
+            {name: "Dunkin' DUMBO", lat: 40.7033, lng: -73.9889, neighborhood: "DUMBO", borough: "Brooklyn"},
+            {name: "Dunkin' Brooklyn Heights", lat: 40.6962, lng: -73.9936, neighborhood: "Brooklyn Heights", borough: "Brooklyn"},
+            {name: "Dunkin' Downtown Brooklyn", lat: 40.6924, lng: -73.9875, neighborhood: "Downtown Brooklyn", borough: "Brooklyn"},
+            {name: "Dunkin' Park Slope", lat: 40.6736, lng: -73.9796, neighborhood: "Park Slope", borough: "Brooklyn"},
+            {name: "Dunkin' Carroll Gardens", lat: 40.6760, lng: -73.9999, neighborhood: "Carroll Gardens", borough: "Brooklyn"},
+            {name: "Dunkin' Red Hook", lat: 40.6735, lng: -74.0089, neighborhood: "Red Hook", borough: "Brooklyn"},
+            {name: "Dunkin' East Williamsburg", lat: 40.7087, lng: -73.9419, neighborhood: "East Williamsburg", borough: "Brooklyn"},
+            {name: "Dunkin' Crown Heights", lat: 40.6694, lng: -73.9422, neighborhood: "Crown Heights", borough: "Brooklyn"},
+            {name: "Dunkin' Boerum Hill", lat: 40.6851, lng: -73.9911, neighborhood: "Boerum Hill", borough: "Brooklyn"},
+            
+            // Missing locations specifically mentioned
+            {name: "Dunkin' Graham Ave", lat: 40.7143, lng: -73.9441, neighborhood: "Williamsburg", borough: "Brooklyn", address: "352 Graham Ave"},
+            {name: "Dunkin' Metropolitan Ave", lat: 40.7142, lng: -73.9506, neighborhood: "Williamsburg", borough: "Brooklyn", address: "527 Metropolitan Ave"},
+            
+            // Additional Williamsburg/Greenpoint area locations
+            {name: "Dunkin' Bedford Ave", lat: 40.7171, lng: -73.9565, neighborhood: "Williamsburg", borough: "Brooklyn"},
+            {name: "Dunkin' Grand Street", lat: 40.7119, lng: -73.9400, neighborhood: "East Williamsburg", borough: "Brooklyn"},
+            {name: "Dunkin' Lorimer Street", lat: 40.7140, lng: -73.9479, neighborhood: "Williamsburg", borough: "Brooklyn"},
+            {name: "Dunkin' Nassau Ave", lat: 40.7242, lng: -73.9510, neighborhood: "Greenpoint", borough: "Brooklyn"},
+            {name: "Dunkin' McGuinness Blvd", lat: 40.7289, lng: -73.9489, neighborhood: "Greenpoint", borough: "Brooklyn"},
+            {name: "Dunkin' Manhattan Ave", lat: 40.7267, lng: -73.9538, neighborhood: "Greenpoint", borough: "Brooklyn"},
+            
+            // Additional Bushwick locations
+            {name: "Dunkin' Myrtle Ave", lat: 40.6996, lng: -73.9097, neighborhood: "Bushwick", borough: "Brooklyn"},
+            {name: "Dunkin' Broadway Bushwick", lat: 40.7057, lng: -73.9504, neighborhood: "Bushwick", borough: "Brooklyn"},
+            {name: "Dunkin' Knickerbocker Ave", lat: 40.7018, lng: -73.9198, neighborhood: "Bushwick", borough: "Brooklyn"},
+            {name: "Dunkin' Wilson Ave", lat: 40.6975, lng: -73.9089, neighborhood: "Bushwick", borough: "Brooklyn"},
+            
+            // Additional Bed-Stuy locations
+            {name: "Dunkin' Nostrand Ave", lat: 40.6806, lng: -73.9504, neighborhood: "Bed-Stuy", borough: "Brooklyn"},
+            {name: "Dunkin' Fulton Street Bed-Stuy", lat: 40.6868, lng: -73.9750, neighborhood: "Bed-Stuy", borough: "Brooklyn"},
+            {name: "Dunkin' Atlantic Ave Bed-Stuy", lat: 40.6847, lng: -73.9772, neighborhood: "Bed-Stuy", borough: "Brooklyn"},
+            {name: "Dunkin' Myrtle Ave Bed-Stuy", lat: 40.6969, lng: -73.9434, neighborhood: "Bed-Stuy", borough: "Brooklyn"},
+            
+            // Fort Greene additional locations  
+            {name: "Dunkin' DeKalb Ave", lat: 40.6901, lng: -73.9817, neighborhood: "Fort Greene", borough: "Brooklyn"},
+            {name: "Dunkin' Flatbush Ave Extension", lat: 40.6900, lng: -73.9820, neighborhood: "Fort Greene", borough: "Brooklyn"},
+            
+            // Clinton Hill additional
+            {name: "Dunkin' Myrtle Ave Clinton Hill", lat: 40.6938, lng: -73.9662, neighborhood: "Clinton Hill", borough: "Brooklyn"},
+            {name: "Dunkin' Fulton St Clinton Hill", lat: 40.6879, lng: -73.9690, neighborhood: "Clinton Hill", borough: "Brooklyn"}
+        ];
+
+        // Comprehensive subway stops in target areas
+        const subwayStops = [
+            // Manhattan below 42nd Street - comprehensive coverage
+            {name: "Union Square-14th St", lines: "N,Q,R,W,L,4,5,6", lat: 40.7359, lng: -73.9911, neighborhood: "Union Square"},
+            {name: "34th St-Penn Station", lines: "A,C,E,1,2,3", lat: 40.7505, lng: -73.9934, neighborhood: "Midtown South"},
+            {name: "Herald Sq-34th St", lines: "B,D,F,M,N,Q,R,W", lat: 40.7505, lng: -73.9884, neighborhood: "Midtown South"},
+            {name: "28th St", lines: "N,Q,R,W", lat: 40.7459, lng: -73.9881, neighborhood: "NoMad"},
+            {name: "28th St", lines: "6", lat: 40.7436, lng: -73.9822, neighborhood: "Gramercy"},
+            {name: "23rd St", lines: "N,Q,R,W", lat: 40.7417, lng: -73.9893, neighborhood: "Flatiron"},
+            {name: "23rd St", lines: "6", lat: 40.7394, lng: -73.9837, neighborhood: "Gramercy"},
+            {name: "23rd St", lines: "F,M", lat: 40.7429, lng: -73.9918, neighborhood: "Chelsea"},
+            {name: "14th St-8th Ave", lines: "A,C,E,L", lat: 40.7398, lng: -74.0018, neighborhood: "Chelsea"},
+            {name: "14th St-6th Ave", lines: "F,M", lat: 40.7376, lng: -73.9963, neighborhood: "Greenwich Village"},
+            {name: "8th St-NYU", lines: "N,Q,R,W", lat: 40.7308, lng: -73.9921, neighborhood: "Greenwich Village"},
+            {name: "Astor Pl", lines: "6", lat: 40.7300, lng: -73.9915, neighborhood: "East Village"},
+            {name: "Bleecker St", lines: "6", lat: 40.7256, lng: -73.9942, neighborhood: "NoHo"},
+            {name: "Spring St", lines: "6", lat: 40.7223, lng: -73.9973, neighborhood: "Nolita"},
+            {name: "Canal St", lines: "6", lat: 40.7188, lng: -74.0062, neighborhood: "Chinatown"},
+            {name: "Canal St", lines: "N,Q,R,W,J,Z", lat: 40.7188, lng: -74.0062, neighborhood: "Chinatown"},
+            {name: "Prince St", lines: "N,Q,R,W", lat: 40.7242, lng: -74.0024, neighborhood: "SoHo"},
+            {name: "Spring St", lines: "C,E", lat: 40.7263, lng: -74.0039, neighborhood: "SoHo"},
+            {name: "Houston St", lines: "1", lat: 40.7281, lng: -74.0058, neighborhood: "SoHo"},
+            {name: "Christopher St-Sheridan Sq", lines: "1", lat: 40.7342, lng: -74.0027, neighborhood: "West Village"},
+            {name: "West 4th St-Washington Sq", lines: "A,B,C,D,E,F,M", lat: 40.7323, lng: -74.0013, neighborhood: "Greenwich Village"},
+            {name: "Broadway-Lafayette St", lines: "B,D,F,M", lat: 40.7253, lng: -73.9966, neighborhood: "NoHo"},
+            {name: "Grand St", lines: "B,D", lat: 40.7186, lng: -73.9934, neighborhood: "Little Italy"},
+            {name: "Delancey St-Essex St", lines: "F,M,J,Z", lat: 40.7184, lng: -73.9877, neighborhood: "Lower East Side"},
+            {name: "East Broadway", lines: "F", lat: 40.7135, lng: -73.9898, neighborhood: "Lower East Side"},
+            {name: "2nd Ave", lines: "F", lat: 40.7239, lng: -73.9898, neighborhood: "Lower East Side"},
+            {name: "Lower East Side-2nd Ave", lines: "F", lat: 40.7239, lng: -73.9898, neighborhood: "Lower East Side"},
+            {name: "Brooklyn Bridge-City Hall", lines: "4,5,6", lat: 40.7127, lng: -74.0046, neighborhood: "Financial District"},
+            {name: "Fulton St", lines: "A,C,J,Z,2,3,4,5", lat: 40.7097, lng: -74.0063, neighborhood: "Financial District"},
+            {name: "Wall St", lines: "4,5", lat: 40.7074, lng: -74.0113, neighborhood: "Financial District"},
+            {name: "Bowling Green", lines: "4,5", lat: 40.7049, lng: -74.0137, neighborhood: "Financial District"},
+            {name: "South Ferry", lines: "1", lat: 40.7017, lng: -74.0134, neighborhood: "Financial District"},
+            {name: "Whitehall St-South Ferry", lines: "R,W", lat: 40.7017, lng: -74.0134, neighborhood: "Financial District"},
+            {name: "Cortlandt St", lines: "R,W", lat: 40.7126, lng: -74.0112, neighborhood: "Financial District"},
+            {name: "Rector St", lines: "1", lat: 40.7073, lng: -74.0134, neighborhood: "Financial District"},
+            {name: "Chambers St", lines: "A,C,1,2,3", lat: 40.7150, lng: -74.0096, neighborhood: "Tribeca"},
+            {name: "Franklin St", lines: "1", lat: 40.7190, lng: -74.0067, neighborhood: "Tribeca"},
+            {name: "Canal St", lines: "A,C,E", lat: 40.7200, lng: -74.0052, neighborhood: "Tribeca"},
+            
+            // Brooklyn - Target neighborhoods comprehensive coverage
+            {name: "Bedford Ave", lines: "L", lat: 40.7171, lng: -73.9565, neighborhood: "Williamsburg"},
+            {name: "Lorimer St", lines: "L", lat: 40.7140, lng: -73.9479, neighborhood: "Williamsburg"},
+            {name: "Graham Ave", lines: "L", lat: 40.7140, lng: -73.9440, neighborhood: "East Williamsburg"},
+            {name: "Grand St", lines: "L", lat: 40.7119, lng: -73.9400, neighborhood: "East Williamsburg"},
+            {name: "Montrose Ave", lines: "L", lat: 40.7074, lng: -73.9396, neighborhood: "East Williamsburg"},
+            {name: "Morgan Ave", lines: "L", lat: 40.7063, lng: -73.9330, neighborhood: "East Williamsburg"},
+            {name: "Jefferson St", lines: "L", lat: 40.7063, lng: -73.9222, neighborhood: "Bushwick"},
+            {name: "DeKalb Ave", lines: "L", lat: 40.7038, lng: -73.9177, neighborhood: "Bushwick"},
+            {name: "Myrtle-Wyckoff Aves", lines: "L,M", lat: 40.6996, lng: -73.9097, neighborhood: "Bushwick"},
+            {name: "Halsey St", lines: "J", lat: 40.6861, lng: -73.9169, neighborhood: "Bushwick"},
+            {name: "Gates Ave", lines: "J", lat: 40.6893, lng: -73.9218, neighborhood: "Bushwick"},
+            {name: "Kosciuszko St", lines: "J", lat: 40.6933, lng: -73.9279, neighborhood: "Bed-Stuy"},
+            {name: "Marcy Ave", lines: "J,M,Z", lat: 40.7081, lng: -73.9578, neighborhood: "Williamsburg"},
+            {name: "Hewes St", lines: "J,M", lat: 40.7066, lng: -73.9533, neighborhood: "Williamsburg"},
+            {name: "Lorimer St", lines: "J,M", lat: 40.7037, lng: -73.9500, neighborhood: "Williamsburg"},
+            {name: "Flushing Ave", lines: "J,M", lat: 40.7008, lng: -73.9462, neighborhood: "Williamsburg"},
+            {name: "Myrtle Ave", lines: "J,M", lat: 40.6969, lng: -73.9434, neighborhood: "Fort Greene"},
+            {name: "Greenpoint Ave", lines: "G", lat: 40.7312, lng: -73.9542, neighborhood: "Greenpoint"},
+            {name: "Nassau Ave", lines: "G", lat: 40.7242, lng: -73.9510, neighborhood: "Greenpoint"},
+            {name: "Metropolitan Ave", lines: "G", lat: 40.7142, lng: -73.9506, neighborhood: "Williamsburg"},
+            {name: "Broadway", lines: "G", lat: 40.7057, lng: -73.9504, neighborhood: "Williamsburg"},
+            {name: "Fort Greene-Willoughby Ave", lines: "G", lat: 40.6919, lng: -73.9730, neighborhood: "Fort Greene"},
+            {name: "Fulton St", lines: "G", lat: 40.6868, lng: -73.9750, neighborhood: "Fort Greene"},
+            {name: "Hoyt-Schermerhorn Sts", lines: "A,C,G", lat: 40.6886, lng: -73.9851, neighborhood: "Downtown Brooklyn"},
+            {name: "Lafayette Ave", lines: "C", lat: 40.6862, lng: -73.9745, neighborhood: "Fort Greene"},
+            {name: "Clinton-Washington Aves", lines: "C", lat: 40.6833, lng: -73.9669, neighborhood: "Clinton Hill"},
+            {name: "Franklin Ave", lines: "C,S", lat: 40.6817, lng: -73.9584, neighborhood: "Crown Heights"},
+            {name: "Nostrand Ave", lines: "A,C", lat: 40.6806, lng: -73.9504, neighborhood: "Bed-Stuy"},
+            {name: "Utica Ave", lines: "A,C", lat: 40.6795, lng: -73.9303, neighborhood: "Bed-Stuy"},
+            {name: "Ralph Ave", lines: "A,C", lat: 40.6789, lng: -73.9208, neighborhood: "Bed-Stuy"},
+            {name: "Rockaway Ave", lines: "A,C", lat: 40.6782, lng: -73.9115, neighborhood: "Bed-Stuy"},
+            {name: "Broadway Junction", lines: "A,C,J,L,Z", lat: 40.6788, lng: -73.9059, neighborhood: "East New York"},
+            {name: "Atlantic Ave-Barclays Ctr", lines: "B,D,N,Q,R,2,3,4,5", lat: 40.6847, lng: -73.9772, neighborhood: "Fort Greene"},
+            {name: "DeKalb Ave", lines: "B,Q,R", lat: 40.6901, lng: -73.9817, neighborhood: "Fort Greene"},
+            {name: "Jay St-MetroTech", lines: "A,C,F,R", lat: 40.6924, lng: -73.9875, neighborhood: "Downtown Brooklyn"},
+            {name: "High St-Brooklyn Bridge", lines: "A,C", lat: 40.6995, lng: -73.9902, neighborhood: "DUMBO"},
+            {name: "York St", lines: "F", lat: 40.7016, lng: -73.9864, neighborhood: "DUMBO"},
+            {name: "Bergen St", lines: "F,G", lat: 40.6865, lng: -73.9903, neighborhood: "Boerum Hill"},
+            {name: "Carroll St", lines: "F,G", lat: 40.6804, lng: -73.9948, neighborhood: "Carroll Gardens"},
+            {name: "Smith-9th Sts", lines: "F,G", lat: 40.6738, lng: -73.9953, neighborhood: "Gowanus"},
+            {name: "4th Ave-9th St", lines: "F,G,R", lat: 40.6700, lng: -73.9897, neighborhood: "Park Slope"},
+            {name: "7th Ave", lines: "B,Q", lat: 40.6773, lng: -73.9800, neighborhood: "Park Slope"},
+            {name: "Prospect Park", lines: "B,Q", lat: 40.6618, lng: -73.9626, neighborhood: "Prospect Park"},
+            {name: "Grand Army Plaza", lines: "2,3", lat: 40.6752, lng: -73.9707, neighborhood: "Prospect Heights"},
+            {name: "Eastern Pkwy-Brooklyn Museum", lines: "2,3", lat: 40.6717, lng: -73.9635, neighborhood: "Prospect Heights"},
+            {name: "Franklin Ave", lines: "2,3,4,5", lat: 40.6707, lng: -73.9583, neighborhood: "Crown Heights"},
+            {name: "Nostrand Ave", lines: "2,3", lat: 40.6694, lng: -73.9504, neighborhood: "Crown Heights"},
+            {name: "Kingston Ave", lines: "2,3", lat: 40.6694, lng: -73.9422, neighborhood: "Crown Heights"}
+        ];
+
+        // Global variables
+        let colocatedPairs = [];
+        let allMarkers = [];
+
+        // Distance calculation function
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 3959; // Earth's radius in miles
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                     Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Color coding function
+        function getColorByDistance(distance) {
+            if (distance < 0.2) return '#00FF00';
+            if (distance < 0.5) return '#FFFF00';
+            if (distance < 1.0) return '#FFA500';
+            return '#FF0000';
+        }
+
+        // Function to detect co-located or very close markers
+        function detectColocatedMarkers() {
+            colocatedPairs = [];
+            const threshold = 0.01; // ~100 feet
+
+            subwayStops.forEach((subway, subwayIndex) => {
+                dunkinLocations.forEach((dunkin, dunkinIndex) => {
+                    const distance = calculateDistance(subway.lat, subway.lng, dunkin.lat, dunkin.lng);
+                    if (distance <= threshold) {
+                        // Debug logging for specific stations
+                        if (subway.name.includes('Nostrand') || subway.name.includes('Grand') || 
+                            dunkin.name.includes('Nostrand') || dunkin.name.includes('Grand')) {
+                            console.log(`Found overlap: ${subway.name} <-> ${dunkin.name}, distance: ${distance.toFixed(6)} miles`);
+                        }
+                        
+                        colocatedPairs.push({
+                            subway: subway,
+                            dunkin: dunkin,
+                            distance: distance,
+                            exactMatch: distance < 0.001,
+                            subwayIndex: subwayIndex,
+                            dunkinIndex: dunkinIndex
+                        });
+                    }
+                });
+            });
+
+            console.log(`Detected ${colocatedPairs.length} co-located pairs:`, colocatedPairs.map(p => `${p.subway.name} <-> ${p.dunkin.name}`));
+            return colocatedPairs;
+        }
+
+        // Clear all markers and layers
+        function clearAllMarkers() {
+            subwayGroup.clearLayers();
+            dunkinGroup.clearLayers();
+            subwayCluster.clearLayers();
+            dunkinCluster.clearLayers();
+            allMarkers = [];
+        }
+
+        // Initialize the map with standard view
+        function initializeMap() {
+            clearAllMarkers();
+
+            let totalDistance = 0;
+            let colocatedCount = 0;
+
+            // Process subway stops
+            subwayStops.forEach(stop => {
+                let minDistance = Infinity;
+                let nearestDunkin = null;
+                
+                dunkinLocations.forEach(dunkin => {
+                    const distance = calculateDistance(stop.lat, stop.lng, dunkin.lat, dunkin.lng);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        nearestDunkin = dunkin;
+                    }
+                });
+                
+                totalDistance += minDistance;
+                const color = getColorByDistance(minDistance);
+                
+                // Check if this is a co-located pair for highlighting
+                const isColocated = colocatedPairs.some(pair => 
+                    Math.abs(pair.subway.lat - stop.lat) < 0.0001 && 
+                    Math.abs(pair.subway.lng - stop.lng) < 0.0001
+                );
+                
+                // Debug logging for specific stations
+                if (stop.name.includes('Nostrand') || stop.name.includes('Grand')) {
+                    console.log(`Checking ${stop.name}: isColocated=${isColocated}, color=${color}, coords=${stop.lat},${stop.lng}`);
+                }
+                
+                if (isColocated && document.getElementById('highlightColocated').checked) {
+                    colocatedCount++;
+                }
+                
+                const className = isColocated && document.getElementById('highlightColocated').checked 
+                    ? 'subway-with-dunkin' 
+                    : 'subway-marker';
+                
+                const marker = L.circleMarker([stop.lat, stop.lng], {
+                    radius: isColocated && document.getElementById('highlightColocated').checked ? 8 : 6,
+                    fillColor: color,
+                    color: isColocated && document.getElementById('highlightColocated').checked ? '#FF1493' : '#000',
+                    weight: isColocated && document.getElementById('highlightColocated').checked ? 6 : 2,
+                    opacity: 1,
+                    fillOpacity: isColocated && document.getElementById('highlightColocated').checked ? 1.0 : 0.8,
+                    className: className,
+                    pane: 'markerPane',
+                    zIndexOffset: isColocated && document.getElementById('highlightColocated').checked ? 1000 : 500
+                });
+                
+                marker.bindPopup(`
+                    <strong>${stop.name}</strong><br>
+                    Lines: ${stop.lines}<br>
+                    Neighborhood: ${stop.neighborhood}<br>
+                    ${isColocated ? '<strong>⭐ Overlaps with Dunkin\'!</strong><br>' : ''}
+                    Distance to nearest Dunkin': ${minDistance.toFixed(2)} miles<br>
+                    Nearest: ${nearestDunkin.name}<br>
+                    Nearest Dunkin' Neighborhood: ${nearestDunkin.neighborhood}
+                `);
+                
+                subwayGroup.addLayer(marker);
+                allMarkers.push(marker);
+            });
+
+            // Add Dunkin' locations
+            dunkinLocations.forEach(dunkin => {
+                const marker = L.circleMarker([dunkin.lat, dunkin.lng], {
+                    radius: 8,
+                    fillColor: '#FF69B4',
+                    color: '#000',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8,
+                    className: 'dunkin-marker',
+                    pane: 'markerPane',
+                    zIndexOffset: 100
+                });
+                
+                const addressText = dunkin.address ? `<br><strong>Address:</strong> ${dunkin.address}` : '';
+                
+                marker.bindPopup(`
+                    <strong>${dunkin.name}</strong><br>
+                    Neighborhood: ${dunkin.neighborhood}<br>
+                    Borough: ${dunkin.borough}${addressText}
+                `);
+                
+                dunkinGroup.addLayer(marker);
+                allMarkers.push(marker);
+            });
+
+            // Update statistics
+            const avgDistance = totalDistance > 0 ? (totalDistance / (subwayStops.length - colocatedPairs.length)).toFixed(2) : '0.00';
+            document.getElementById('subwayCount').textContent = subwayStops.length;
+            document.getElementById('dunkinCount').textContent = dunkinLocations.length;
+            document.getElementById('colocatedCount').textContent = colocatedPairs.length;
+            document.getElementById('avgDistance').textContent = avgDistance;
+
+            // Apply current layer settings
+            updateLayerVisibility();
+        }
+
+        // Update layer visibility based on controls
+        function updateLayerVisibility() {
+            const showSubway = document.getElementById('showSubway').checked;
+            const showDunkin = document.getElementById('showDunkin').checked;
+            const clusterMarkers = document.getElementById('clusterMarkers').checked;
+
+            // Remove all layers first
+            map.removeLayer(subwayGroup);
+            map.removeLayer(dunkinGroup);
+            map.removeLayer(subwayCluster);
+            map.removeLayer(dunkinCluster);
+
+            // Add Dunkin' layers first (so they appear underneath subway stops)
+            if (showDunkin) {
+                if (clusterMarkers) {
+                    dunkinGroup.eachLayer(layer => dunkinCluster.addLayer(layer));
+                    map.addLayer(dunkinCluster);
+                } else {
+                    map.addLayer(dunkinGroup);
+                }
+            }
+
+            // Add subway layers second (so they appear on top)
+            if (showSubway) {
+                if (clusterMarkers) {
+                    subwayGroup.eachLayer(layer => subwayCluster.addLayer(layer));
+                    map.addLayer(subwayCluster);
+                } else {
+                    map.addLayer(subwayGroup);
+                }
+            }
+        }
+
+        // Setup control event listeners
+        function setupControls() {
+            document.getElementById('showSubway').addEventListener('change', updateLayerVisibility);
+            document.getElementById('showDunkin').addEventListener('change', updateLayerVisibility);
+            document.getElementById('clusterMarkers').addEventListener('change', updateLayerVisibility);
+            document.getElementById('highlightColocated').addEventListener('change', function() {
+                initializeMap(); // Reinitialize to update highlighting
+            });
+        }
+
+        // Initialize everything
+        detectColocatedMarkers();
+        initializeMap();
+        setupControls();
+    </script>
+</body>
+</html>
